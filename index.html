@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Console</title>
+<style>
+  :root {
+    --ink: #0e1420;
+    --panel: #141c2b;
+    --panel-2: #1b2536;
+    --line: #29354a;
+    --text: #dde4ee;
+    --text-dim: #8b97ac;
+    --amber: #e8a33d;
+    --amber-dim: #7a5a26;
+    --green: #5fbf7a;
+    --red: #e0616f;
+    --mono: "SF Mono", "Menlo", "Consolas", monospace;
+    --sans: -apple-system, "Segoe UI", "Inter", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 40px 20px 80px;
+  }
+
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 32px;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--amber);
+    letter-spacing: 0.02em;
+    margin: 0 0 6px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    margin-right: 6px;
+    position: relative;
+    top: -1px;
+  }
+  .status-dot.on { background: var(--green); }
+  .status-dot.off { background: var(--red); }
+
+  section {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  section h2 {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: none;
+    color: var(--text);
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .field {
+    margin-bottom: 12px;
+  }
+
+  .field:last-child { margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+
+  input, textarea, select {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 9px 11px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: var(--mono);
+    outline: none;
+  }
+
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--amber-dim);
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 70px;
+  }
+
+  .row {
+    display: flex;
+    gap: 10px;
+  }
+  .row > div { flex: 1; }
+
+  button {
+    background: var(--amber);
+    color: #1a1206;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    width: 100%;
+    margin-top: 14px;
+  }
+
+  button:hover { filter: brightness(1.08); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+
+  .msg {
+    font-size: 12px;
+    margin-top: 10px;
+    font-family: var(--mono);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.error { color: var(--red); }
+  .msg.success { color: var(--green); }
+
+  .token-box {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 10px;
+    word-break: break-all;
+    max-height: 70px;
+    overflow-y: auto;
+  }
+
+  pre.response {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    margin-top: 12px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text);
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .response-status {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 12px;
+  }
+  .response-status.ok { background: rgba(95,191,122,0.15); color: var(--green); }
+  .response-status.fail { background: rgba(224,97,111,0.15); color: var(--red); }
+
+  .hint {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  a { color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="tag">// api-console</p>
+    <h1><span id="status-dot" class="status-dot off"></span>Cognito API Tester</h1>
+  </header>
+
+  <section id="config-section">
+    <h2>Configuration</h2>
+    <div class="field">
+      <label for="region">AWS Region</label>
+      <input id="region" type="text" placeholder="us-west-2" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="clientId">Cognito App Client ID</label>
+      <input id="clientId" type="text" placeholder="1a2b3c4d5e6f7g8h9i0j" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="apiBase">API Base URL</label>
+      <input id="apiBase" type="text" placeholder="https://abc123.execute-api.us-west-2.amazonaws.com/prod" autocomplete="off">
+    </div>
+    <div class="hint">Saved locally in your browser only — nothing here is sent anywhere except your own AWS account.</div>
+  </section>
+
+  <section id="auth-section">
+    <h2>Sign in</h2>
+    <div class="field">
+      <label for="username">Email</label>
+      <input id="username" type="email" placeholder="you@example.com" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" type="password" placeholder="••••••••" autocomplete="off">
+    </div>
+    <button id="signInBtn">Sign in</button>
+    <div id="authMsg" class="msg"></div>
+    <div id="tokenBox" class="token-box" style="display:none;"></div>
+  </section>
+
+  <section id="call-section">
+    <h2>Call endpoint</h2>
+    <div class="row">
+      <div>
+        <label for="method">Method</label>
+        <select id="method">
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+      </div>
+      <div style="flex:2;">
+        <label for="path">Path</label>
+        <input id="path" type="text" placeholder="/function-a" autocomplete="off">
+      </div>
+    </div>
+    <div class="field" id="bodyField">
+      <label for="body">Request body (JSON, optional)</label>
+      <textarea id="body" placeholder='{"name": "world"}'></textarea>
+    </div>
+    <button id="sendBtn" disabled>Sign in first</button>
+    <div id="responseStatus"></div>
+    <pre id="responseBox" class="response" style="display:none;"></pre>
+  </section>
+
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const CONFIG_KEYS = ["region", "clientId", "apiBase"];
+
+  // Load saved config from localStorage
+  CONFIG_KEYS.forEach((key) => {
+    const saved = localStorage.getItem("apiconsole_" + key);
+    if (saved) $(key).value = saved;
+  });
+  CONFIG_KEYS.forEach((key) => {
+    $(key).addEventListener("input", () => {
+      localStorage.setItem("apiconsole_" + key, $(key).value.trim());
+    });
+  });
+
+  let idToken = null;
+
+  function setStatus(signedIn) {
+    const dot = $("status-dot");
+    dot.classList.toggle("on", signedIn);
+    dot.classList.toggle("off", !signedIn);
+    $("sendBtn").disabled = !signedIn;
+    $("sendBtn").textContent = signedIn ? "Send request" : "Sign in first";
+  }
+
+  $("signInBtn").addEventListener("click", async () => {
+    const region = $("region").value.trim();
+    const clientId = $("clientId").value.trim();
+    const username = $("username").value.trim();
+    const password = $("password").value;
+    const authMsg = $("authMsg");
+    const tokenBox = $("tokenBox");
+
+    authMsg.className = "msg";
+    authMsg.textContent = "";
+    tokenBox.style.display = "none";
+
+    if (!region || !clientId || !username || !password) {
+      authMsg.className = "msg error";
+      authMsg.textContent = "Fill in region, client ID, email, and password first.";
+      return;
+    }
+
+    $("signInBtn").disabled = true;
+    $("signInBtn").textContent = "Signing in…";
+
+    try {
+      const res = await fetch(`https://cognito-idp.${region}.amazonaws.com/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-amz-json-1.1",
+          "X-Amz-Target": "AWSCognitoIdentityProviderService.InitiateAuth"
+        },
+        body: JSON.stringify({
+          AuthFlow: "USER_PASSWORD_AUTH",
+          ClientId: clientId,
+          AuthParameters: {
+            USERNAME: username,
+            PASSWORD: password
+          }
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || data.__type || "Sign-in failed.");
+      }
+
+      if (data.ChallengeName) {
+        throw new Error(`Cognito requires an extra step: ${data.ChallengeName}. This console only supports direct username/password sign-in.`);
+      }
+
+      idToken = data.AuthenticationResult.IdToken;
+      authMsg.className = "msg success";
+      authMsg.textContent = "Signed in.";
+      tokenBox.style.display = "block";
+      tokenBox.textContent = idToken;
+      setStatus(true);
+    } catch (err) {
+      authMsg.className = "msg error";
+      authMsg.textContent = err.message;
+      setStatus(false);
+    } finally {
+      $("signInBtn").disabled = false;
+      $("signInBtn").textContent = "Sign in";
+    }
+  });
+
+  $("method").addEventListener("change", () => {
+    $("bodyField").style.display = $("method").value === "GET" ? "none" : "block";
+  });
+
+  $("sendBtn").addEventListener("click", async () => {
+    const apiBase = $("apiBase").value.trim().replace(/\/$/, "");
+    const path = $("path").value.trim();
+    const method = $("method").value;
+    const bodyText = $("body").value.trim();
+    const statusEl = $("responseStatus");
+    const responseBox = $("responseBox");
+
+    statusEl.innerHTML = "";
+    responseBox.style.display = "none";
+
+    if (!apiBase || !path) {
+      statusEl.innerHTML = '<span class="response-status fail">Missing base URL or path</span>';
+      return;
+    }
+    if (!idToken) {
+      statusEl.innerHTML = '<span class="response-status fail">Not signed in</span>';
+      return;
+    }
+
+    $("sendBtn").disabled = true;
+    $("sendBtn").textContent = "Sending…";
+
+    const url = apiBase + (path.startsWith("/") ? path : "/" + path);
+    const options = {
+      method,
+      headers: {
+        "Authorization": idToken,
+        "Content-Type": "application/json"
+      }
+    };
+    if (method !== "GET" && bodyText) {
+      options.body = bodyText;
+    }
+
+    try {
+      const res = await fetch(url, options);
+      const text = await res.text();
+      let display = text;
+      try { display = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+
+      statusEl.innerHTML = `<span class="response-status ${res.ok ? "ok" : "fail"}">${res.status} ${res.statusText}</span>`;
+      responseBox.style.display = "block";
+      responseBox.textContent = display || "(empty response)";
+    } catch (err) {
+      statusEl.innerHTML = '<span class="response-status fail">Request failed</span>';
+      responseBox.style.display = "block";
+      responseBox.textContent = err.message;
+    } finally {
+      $("sendBtn").disabled = false;
+      $("sendBtn").textContent = "Send request";
+    }
+  });
+</script>
+</body>
+</html>
