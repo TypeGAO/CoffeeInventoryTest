@@ -248,6 +248,15 @@
     <button id="signInBtn">Sign in</button>
     <div id="authMsg" class="msg"></div>
     <div id="tokenBox" class="token-box" style="display:none;"></div>
+
+    <div id="newPasswordFields" style="display:none; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line);">
+      <div class="hint" style="margin-bottom: 10px;">This account needs a new password before it can sign in.</div>
+      <div class="field">
+        <label for="newPassword">New password</label>
+        <input id="newPassword" type="password" placeholder="••••••••" autocomplete="off">
+      </div>
+      <button id="setNewPasswordBtn" class="secondary">Set new password &amp; sign in</button>
+    </div>
   </section>
 
   <section id="call-section">
@@ -294,6 +303,7 @@
   });
 
   let idToken = null;
+  let pendingSession = null;
 
   function setStatus(signedIn) {
     const dot = $("status-dot");
@@ -347,8 +357,16 @@
         throw new Error(data.message || data.__type || "Sign-in failed.");
       }
 
+      if (data.ChallengeName === "NEW_PASSWORD_REQUIRED") {
+        pendingSession = data.Session;
+        authMsg.className = "msg";
+        authMsg.textContent = "";
+        $("newPasswordFields").style.display = "block";
+        return;
+      }
+
       if (data.ChallengeName) {
-        throw new Error(`Cognito requires an extra step: ${data.ChallengeName}. This console only supports direct username/password sign-in.`);
+        throw new Error(`Cognito requires an extra step: ${data.ChallengeName}. This console only supports direct sign-in and first-time password reset.`);
       }
 
       idToken = data.AuthenticationResult.IdToken;
@@ -364,6 +382,77 @@
     } finally {
       $("signInBtn").disabled = false;
       $("signInBtn").textContent = "Sign in";
+    }
+  });
+
+  $("setNewPasswordBtn").addEventListener("click", async () => {
+    const region = $("region").value.trim();
+    const clientId = $("clientId").value.trim();
+    const username = $("username").value.trim();
+    const newPassword = $("newPassword").value;
+    const authMsg = $("authMsg");
+    const tokenBox = $("tokenBox");
+
+    authMsg.className = "msg";
+    authMsg.textContent = "";
+
+    if (!newPassword) {
+      authMsg.className = "msg error";
+      authMsg.textContent = "Enter a new password.";
+      return;
+    }
+    if (!pendingSession) {
+      authMsg.className = "msg error";
+      authMsg.textContent = "No pending sign-in challenge. Try signing in again.";
+      return;
+    }
+
+    $("setNewPasswordBtn").disabled = true;
+    $("setNewPasswordBtn").textContent = "Setting password…";
+
+    try {
+      const res = await fetch(`https://cognito-idp.${region}.amazonaws.com/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-amz-json-1.1",
+          "X-Amz-Target": "AWSCognitoIdentityProviderService.RespondToAuthChallenge"
+        },
+        body: JSON.stringify({
+          ChallengeName: "NEW_PASSWORD_REQUIRED",
+          ClientId: clientId,
+          Session: pendingSession,
+          ChallengeResponses: {
+            USERNAME: username,
+            NEW_PASSWORD: newPassword
+          }
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || data.__type || "Failed to set new password.");
+      }
+
+      if (data.ChallengeName) {
+        throw new Error(`Cognito requires another step: ${data.ChallengeName}. This console doesn't support that challenge type.`);
+      }
+
+      idToken = data.AuthenticationResult.IdToken;
+      pendingSession = null;
+      $("newPasswordFields").style.display = "none";
+      $("newPassword").value = "";
+      authMsg.className = "msg success";
+      authMsg.textContent = "Password set. Signed in.";
+      tokenBox.style.display = "block";
+      tokenBox.textContent = idToken;
+      setStatus(true);
+    } catch (err) {
+      authMsg.className = "msg error";
+      authMsg.textContent = err.message;
+    } finally {
+      $("setNewPasswordBtn").disabled = false;
+      $("setNewPasswordBtn").textContent = "Set new password & sign in";
     }
   });
 
